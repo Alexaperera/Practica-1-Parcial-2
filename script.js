@@ -1,101 +1,89 @@
-document.addEventListener('DOMContentLoaded', loadTasks);
-document.getElementById('taskForm').addEventListener('submit', addTask);
+// script.js
+document.getElementById('agregar').addEventListener('click', agregarNombre);
+document.getElementById('generar').addEventListener('click', generarNombre);
 
-function loadTasks() {
-    const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-    tasks.forEach(task => displayTask(task));
-}
+const nombres = [];
+const canvas = document.getElementById('ruleta');
+const ctx = canvas.getContext('2d');
 
-function addTask(e) {
-    e.preventDefault();
-    
-    const taskName = document.getElementById('taskName').value;
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-    const responsible = document.getElementById('responsible').value;
-
-    if (new Date(startDate) > new Date(endDate)) {
-        alert('La fecha de fin no puede ser menor a la fecha de inicio');
-        return;
+function agregarNombre() {
+    const nombreInput = document.getElementById('nombreInput').value;
+    if (nombreInput) {
+        nombres.push(nombreInput);
+        actualizarListaNombres();
+        document.getElementById('nombreInput').value = '';
+        dibujarRuleta();
     }
-
-    const task = {
-        name: taskName,
-        start: startDate,
-        end: endDate,
-        responsible: responsible,
-        completed: false
-    };
-
-    const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-    tasks.push(task);
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-
-    displayTask(task);
-    document.getElementById('taskForm').reset();
 }
 
-function displayTask(task) {
-    const taskList = document.getElementById('taskList');
+function actualizarListaNombres() {
+    const listaNombres = document.getElementById('listaNombres');
+    listaNombres.innerHTML = '';
+    nombres.forEach(nombre => {
+        const li = document.createElement('li');
+        li.textContent = nombre;
+        listaNombres.appendChild(li);
+    });
+}
 
-    const li = document.createElement('li');
-    li.className = 'list-group-item bg-dark p-3 border border-light mb-2 rounded';
-    li.innerHTML = `
-        <div>
-            <h5 class="text-white">${task.name}</h5>
-            <p class="text-white">Contenido: ${task.responsible}</p>
-            <p class="text-white">Inicio: ${task.start} - Fin: ${task.end}</p>
-            <button class="btn btn-success btn-custom btn-sm" onclick="toggleComplete(this)">Marcar como resuelta</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteTask(this)">Eliminar</button>
-            <p id="vencida" style="color:red; display: none;">¡Tarea vencida!</p>
-        </div>
-    `;
+function dibujarRuleta() {
+    const numNames = nombres.length;
+    const arcSize = (2 * Math.PI) / numNames;
+    const colors = ['#ff9999','#66b3ff','#99ff99','#ffcc99','#c2c2f0','#ffb3e6','#c4e17f','#76d7c4','#ff7f50','#ff9f80'];
 
-    const currentDate = new Date();
-    const endDate = new Date(task.end);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < numNames; i++) {
+        const angle = i * arcSize;
+        ctx.beginPath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.moveTo(canvas.width / 2, canvas.height / 2);
+        ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2, angle, angle + arcSize);
+        ctx.lineTo(canvas.width / 2, canvas.height / 2);
+        ctx.fill();
+        ctx.stroke();
 
-    if (task.completed) {
-        li.classList.add('completed');
-        li.querySelector('.btn-success').innerText = 'Desmarcar';
-    } else if (currentDate > endDate) {
-        li.classList.add('expired');
-        const button = li.querySelector('.btn-success');
-        if (button) {
-            button.classList.remove('btn-success');
-            button.classList.add('btn-danger');
-            button.classList.add('btn-danger-disabled');
-            button.disabled = true;
-            button.innerText = 'Vencida';
-        }
-        const vencidaMessage = li.querySelector('#vencida');
-        if (vencidaMessage) {
-            vencidaMessage.style.display = 'block';
-        }
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(angle + arcSize / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#000";
+        ctx.font = "bold 16px Arial";
+        ctx.fillText(nombres[i], canvas.width / 2 - 10, 10);
+        ctx.restore();
     }
-
-    taskList.appendChild(li);
 }
 
-function toggleComplete(button) {
-    const li = button.parentElement.parentElement;
-    const taskName = li.querySelector('h5').innerText;
-    const tasks = JSON.parse(localStorage.getItem('tasks'));
+function generarNombre() {
+    if (nombres.length > 0) {
+        const indiceAleatorio = Math.floor(Math.random() * nombres.length);
+        const nombreAleatorio = nombres[indiceAleatorio];
+        document.getElementById('nombre').textContent = `Nombre seleccionado: ${nombreAleatorio}`;
 
-    const task = tasks.find(t => t.name === taskName);
-    task.completed = !task.completed;
+        // Simulate the spinning effect
+        let startAngle = 0;
+        const spinAngle = (indiceAleatorio * (2 * Math.PI) / nombres.length) + (2 * Math.PI * 3); // 3 full spins + the target angle
+        const spinTimeTotal = 3000;
+        const spinTimeIncrement = 30;
 
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-    li.classList.toggle('completed');
-    button.innerText = task.completed ? 'Desmarcar' : 'Marcar como resuelta';
+        function rotateRuleta() {
+            startAngle += (spinAngle - startAngle) * 0.05;
+            if (startAngle >= spinAngle) {
+                startAngle = spinAngle;
+                clearInterval(spinTimer);
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(startAngle);
+            ctx.translate(-canvas.width / 2, -canvas.height / 2);
+            dibujarRuleta();
+            ctx.restore();
+        }
+
+        const spinTimer = setInterval(rotateRuleta, spinTimeIncrement);
+    } else {
+        document.getElementById('nombre').textContent = 'No hay nombres en la lista';
+    }
 }
 
-function deleteTask(button) {
-    const li = button.parentElement.parentElement;
-    const taskName = li.querySelector('h5').innerText;
-    let tasks = JSON.parse(localStorage.getItem('tasks'));
 
-    tasks = tasks.filter(t => t.name !== taskName);
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-
-    li.remove();
-}
